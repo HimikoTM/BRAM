@@ -1,0 +1,50 @@
+using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
+
+namespace RobloxAccountManager.Models;
+
+public sealed class Account : INotifyPropertyChanged
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+
+    private string _label = "";
+    public string Label { get => _label; set { _label = value; OnChanged(); OnChanged(nameof(Display)); } }
+
+    private string _username = "";
+    public string Username { get => _username; set { _username = value; OnChanged(); OnChanged(nameof(Display)); } }
+
+    public long UserId { get; set; }
+
+    public string SecurityCookie { get; set; } = "";
+
+    private string _group = "General";
+    public string Group { get => _group; set { _group = value; OnChanged(); } }
+
+    public string Notes { get; set; } = "";
+    public DateTime DateAdded { get; set; } = DateTime.Now;
+
+    private DateTime? _lastUsed;
+    public DateTime? LastUsed
+    {
+        get => _lastUsed;
+        set { _lastUsed = value; OnChanged(); OnChanged(nameof(LastUsedText)); }
+    }
+
+    private string _status = "Unknown";
+    [JsonIgnore] public string Status { get => _status; set { _status = value; OnChanged(); } }
+
+    private string _avatarUrl = "";
+    [JsonIgnore] public string AvatarUrl { get => _avatarUrl; set { _avatarUrl = value; OnChanged(); } }
+
+    private bool _isBusy;
+    [JsonIgnore] public bool IsBusy { get => _isBusy; set { _isBusy = value; OnChanged(); } }
+
+    [JsonIgnore] public string Display => string.IsNullOrWhiteSpace(Label) ? Username : $"{Label}  ({Username})";
+    [JsonIgnore] public string LastUsedText => LastUsed is null ? "never launched" : $"last used {LastUsed.Value:g}";
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}

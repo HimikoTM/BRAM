@@ -1,0 +1,125 @@
+name: Release BRAM
+
+on:
+  workflow_dispatch:
+    inputs:
+      changelog:
+        description: "Доп. заметки сверху (необязательно; \\n → перенос строки)"
+        type: string
+        default: ""
+      dry_run:
+        description: "Только собрать и упаковать, без публикации релиза"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Compute version
+        id: version
+        shell: pwsh
+        run: |
+          $now = [DateTime]::UtcNow
+          $year = $now.ToString('yyyy')
+          $month = $now.ToString('MM')
+          $prefix = "$year-$month"
+          $days = @(git log --pretty=format:'%cd' --date=short | Where-Object { $_ -like "$prefix-*" } | Sort-Object -Unique)
+          $minor = $days.Count
+          $commit = (git rev-list --count HEAD).Trim()
+          $version = "v$year.$month.$minor.$commit"
+          if ($version -notmatch '^v\d{4}\.\d{2}\.\d+\.\d+$') { throw "Bad version: $version" }
+          Write-Host "Computed version: $version"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Build changelog
+        id: changelog
+        shell: pwsh
+        run: |
+          $prevTag = (git tag --sort=-v:refname | Select-Object -First 1)
+          if ($prevTag) { $range = "$prevTag..HEAD" } else { $range = $null }
+          if ($range) {
+            $commits = @(git log $range --no-merges --pretty=format:'- %s (%h)')
+          } else {
+            $commits = @(git log --no-merges --pretty=format:'- %s (%h)')
+          }
+
+          $sb = New-Object System.Text.StringBuilder
+          $manual = '${{ inputs.changelog }}'
+          if (-not [string]::IsNullOrWhiteSpace($manual)) {
+            $manual = $manual -replace '\\r\\n', "`n" -replace '\\n', "`n"
+            [void]$sb.AppendLine($manual.Trim())
+            [void]$sb.AppendLine()
+          }
+
+          [void]$sb.AppendLine('### Изменения')
+          if ($commits.Count -gt 0) {
+            foreach ($c in $commits) { [void]$sb.AppendLine($c) }
+          } else {
+            [void]$sb.AppendLine('Без изменений в коде')
+          }
+
+          $notes = Join-Path $env:RUNNER_TEMP 'notes.md'
+          $sb.ToString() | Out-File -FilePath $notes -Encoding utf8
+          "notes=$notes" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Publish BRAM
+        shell: pwsh
+        run: dotnet publish .\src\BRAM\BRAM.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -p:DebugSymbols=false -p:InformationalVersion=${{ steps.version.outputs.version }} -p:IncludeSourceRevisionInInformationalVersion=false
+
+      - name: Verify embedded version
+        shell: pwsh
+        run: |
+          $exe = ".\src\BRAM\bin\Release\net8.0-windows\win-x64\publish\BRAM.exe"
+          $productVersion = (Get-Item $exe).VersionInfo.ProductVersion
+          $clean = $productVersion.Split('+')[0]
+          $expected = '${{ steps.version.outputs.version }}'
+          Write-Host "BRAM.exe ProductVersion = $productVersion"
+          if ($clean -ne $expected) { throw "Embedded version '$clean' != tag '$expected'" }
+
+      - name: Package
+        id: package
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $publish = ".\src\BRAM\bin\Release\net8.0-windows\win-x64\publish"
+          $root = "BRAM-$version"
+          $stage = Join-Path $env:RUNNER_TEMP $root
+          if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item -Path (Join-Path $publish '*') -Destination $stage -Recurse -Force
+          $zip = Join-Path $env:RUNNER_TEMP "$root.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path $stage -DestinationPath $zip
+          Write-Host "Created $zip"
+          "zip=$zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bram-${{ steps.version.outputs.version }}
+          path: ${{ steps.package.outputs.zip }}
+
+      - name: Create release
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          gh release create $version "${{ steps.package.outputs.zip }}" --title $version --notes-file "${{ steps.changelog.outputs.notes }}" --target ${{ github.sha }}

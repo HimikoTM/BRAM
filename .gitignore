@@ -1,0 +1,15 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+*.user
+
+# Rider / VS
+.vs/
+.idea/
+
+# Tooling
+.claude/
+
+# Misc
+*.log
+.thumbnail

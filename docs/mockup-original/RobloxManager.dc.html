@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    @keyframes ramPulse{0%,100%{opacity:1}50%{opacity:.35}}
+    @keyframes ramScanLine{0%{top:-10%}100%{top:110%}}
+    @keyframes ramBlink{0%,100%{opacity:1}50%{opacity:0}}
+    @keyframes ramToastIn{0%{transform:translateX(120%);opacity:0}100%{transform:translateX(0);opacity:1}}
+    @keyframes ramDrawerIn{0%{transform:translateX(100%)}100%{transform:translateX(0)}}
+    @keyframes ramFadeOut{0%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
+    @keyframes ramSpin{100%{transform:rotate(360deg)}}
+    ::-webkit-scrollbar{width:10px;height:10px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:rgba(45,255,138,.18);border-radius:6px;border:2px solid transparent;background-clip:padding-box}
+    ::-webkit-scrollbar-thumb:hover{background:rgba(45,255,138,.35);background-clip:padding-box}
+    ::selection{background:rgba(45,255,138,.3);color:#eafff3}
+    input::placeholder{color:#4a6358}
+  </style>
+</helmet>
+
+<div style="min-height:100vh;width:100%;background:#04070a;font-family:'Space Grotesk','Segoe UI',system-ui,sans-serif;color:#d4f3e3;position:relative;overflow-x:hidden">
+
+  <!-- animated particle canvas -->
+  <canvas ref="{{ canvasRef }}" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;opacity:.55"></canvas>
+
+  <!-- ambient glow + grid -->
+  <div style="position:fixed;inset:0;pointer-events:none;background:radial-gradient(1100px 520px at 50% -8%,rgba(45,255,138,.10),transparent 60%),radial-gradient(800px 600px at 100% 110%,rgba(45,255,138,.05),transparent 55%)"></div>
+  <div style="position:fixed;inset:0;pointer-events:none;opacity:.5;background:linear-gradient(rgba(45,255,138,.035) 1px,transparent 1px) 0 0/100% 46px,linear-gradient(90deg,rgba(45,255,138,.035) 1px,transparent 1px) 0 0/46px 100%;mask-image:radial-gradient(1000px 700px at 50% 30%,#000 30%,transparent 80%)"></div>
+  <div style="position:fixed;left:0;right:0;height:120px;pointer-events:none;background:linear-gradient(180deg,rgba(45,255,138,.07),transparent);animation:ramScanLine 7s linear infinite"></div>
+  <div style="position:fixed;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,transparent,#2dff8a,transparent);box-shadow:0 0 18px rgba(45,255,138,.6);pointer-events:none"></div>
+  <div style="position:fixed;right:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,transparent,#2dff8a,transparent);box-shadow:0 0 18px rgba(45,255,138,.6);pointer-events:none"></div>
+
+  <div style="position:relative;max-width:1160px;margin:0 auto;padding:34px 40px 56px">
+
+    <!-- HEADER -->
+    <div style="display:flex;align-items:center;gap:18px;padding-bottom:20px;border-bottom:1px solid rgba(45,255,138,.18);margin-bottom:24px">
+      <div style="position:relative;width:46px;height:46px;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(45,255,138,.55);border-radius:13px;background:radial-gradient(circle at 50% 30%,rgba(45,255,138,.18),rgba(45,255,138,.03));box-shadow:0 0 22px rgba(45,255,138,.35),inset 0 0 16px rgba(45,255,138,.18)">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#2dff8a" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3" transform="rotate(8 12 12)"/><rect x="9" y="9" width="6" height="6" rx="1.2" fill="#2dff8a" stroke="none"/></svg>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="font-size:21px;font-weight:700;letter-spacing:.5px;color:#eafff3;line-height:1">ROBLOX <span style="color:#2dff8a;text-shadow:0 0 16px rgba(45,255,138,.7)">ACCOUNT MANAGER</span></div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:3px;color:#4f6f61;text-transform:uppercase">Sessions · Multi-launch · Local DPAPI vault</div>
+      </div>
+      <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:2px;color:#6f8a7e;padding:8px 14px;border:1px solid rgba(45,255,138,.2);border-radius:999px;background:rgba(45,255,138,.04)">
+        <span style="width:8px;height:8px;border-radius:50%;background:#2dff8a;box-shadow:0 0 10px #2dff8a;animation:ramPulse 2.4s ease-in-out infinite"></span>VAULT&nbsp;UNLOCKED
+      </div>
+      <button onClick="{{ lockVault }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#cdeede;padding:9px 15px;border:1px solid rgba(45,255,138,.25);border-radius:11px;background:rgba(45,255,138,.05)" style-hover="border-color:#2dff8a;box-shadow:0 0 16px rgba(45,255,138,.25)">🔒 Lock</button>
+    </div>
+
+    <!-- STAT STRIP -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px">
+      <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+        <div style="position:relative;padding:15px 17px;border:1px solid rgba(45,255,138,.16);border-radius:14px;background:linear-gradient(180deg,rgba(12,22,17,.9),rgba(7,12,10,.9));overflow:hidden">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:{{ s.bar }}"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.5px;color:#5d7a6c;text-transform:uppercase;margin-bottom:9px">{{ s.label }}</div>
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <div style="font-size:30px;font-weight:700;font-family:'JetBrains Mono',monospace;color:{{ s.color }};line-height:1;text-shadow:{{ s.glow }}">{{ s.value }}</div>
+            <div style="font-size:11px;color:#5d7a6c;letter-spacing:1px">{{ s.unit }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px">
+      <button onClick="{{ addLogin }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:700;color:#02160c;padding:11px 18px;border:none;border-radius:12px;background:linear-gradient(180deg,#3aff96,#1ee87c);box-shadow:0 0 22px rgba(45,255,138,.4),inset 0 1px 0 rgba(255,255,255,.4)" style-hover="box-shadow:0 0 30px rgba(45,255,138,.65),inset 0 1px 0 rgba(255,255,255,.4)">＋ Add (login)</button>
+      <button onClick="{{ addCookie }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;color:#cdeede;padding:11px 16px;border:1px solid rgba(45,255,138,.25);border-radius:12px;background:rgba(45,255,138,.05)" style-hover="border-color:#2dff8a;color:#eafff3">＋ Add (cookie)</button>
+      <button onClick="{{ refreshAll }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;color:#cdeede;padding:11px 16px;border:1px solid rgba(45,255,138,.25);border-radius:12px;background:rgba(45,255,138,.05)" style-hover="border-color:#2dff8a;color:#eafff3">⟳ Refresh all</button>
+      <button onClick="{{ openClient }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;color:#cdeede;padding:11px 16px;border:1px solid rgba(45,255,138,.25);border-radius:12px;background:rgba(45,255,138,.05)" style-hover="border-color:#2dff8a;color:#eafff3">🚀 Open client</button>
+
+      <div style="flex:1;min-width:180px;position:relative;display:flex;align-items:center">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#4f6f61" stroke-width="2" style="position:absolute;left:14px;pointer-events:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+        <input value="{{ query }}" onInput="{{ onSearch }}" placeholder="Search accounts, groups, usernames…" style="width:100%;font-family:inherit;font-size:13.5px;color:#eafff3;padding:11px 14px 11px 38px;border:1px solid rgba(45,255,138,.2);border-radius:12px;background:rgba(8,14,11,.85);outline:none" style-focus="border-color:#2dff8a;box-shadow:0 0 0 3px rgba(45,255,138,.12)">
+      </div>
+
+      <div onClick="{{ toggleMulti }}" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 14px;border:1px solid {{ multiBorder }};border-radius:12px;background:{{ multiBg }};user-select:none">
+        <div style="position:relative;width:38px;height:20px;border-radius:999px;background:{{ multiTrack }};transition:background .2s">
+          <div style="position:absolute;top:2px;left:{{ multiKnobX }};width:16px;height:16px;border-radius:50%;background:{{ multiKnob }};transition:left .2s,background .2s;box-shadow:{{ multiKnobShadow }}"></div>
+        </div>
+        <span style="font-size:12.5px;font-weight:600;color:{{ multiText }}">Multi-instance</span>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:1.5px;color:#5d7a6c;text-transform:uppercase">Place&nbsp;ID</span>
+        <input value="{{ placeId }}" onInput="{{ onPlace }}" placeholder="optional" style="width:104px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#2dff8a;padding:11px 12px;border:1px solid rgba(45,255,138,.2);border-radius:12px;background:rgba(8,14,11,.85);outline:none" style-focus="border-color:#2dff8a;box-shadow:0 0 0 3px rgba(45,255,138,.12)">
+      </div>
+    </div>
+
+    <!-- GROUP TABS -->
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:22px">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+        <div onClick="{{ t.onClick }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11.5px;letter-spacing:1px;font-weight:500;color:{{ t.color }};padding:7px 13px;border:1px solid {{ t.border }};border-radius:999px;background:{{ t.bg }};user-select:none;transition:all .15s" style-hover="border-color:#2dff8a">
+          {{ t.name }}<span style="font-size:10px;color:{{ t.countColor }};background:{{ t.countBg }};padding:1px 7px;border-radius:999px">{{ t.count }}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- LIST HEADER -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2.5px;color:#5d7a6c;text-transform:uppercase">Accounts</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#2dff8a">[ {{ visibleCount }} ]</div>
+      <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(45,255,138,.22),transparent)"></div>
+    </div>
+
+    <!-- ACCOUNT CARDS -->
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="5">
+        <div onClick="{{ a.onOpen }}" style="position:relative;display:flex;align-items:center;gap:16px;padding:15px 17px;border:1px solid rgba(45,255,138,.13);border-radius:16px;background:linear-gradient(180deg,rgba(12,22,17,.92),rgba(7,12,10,.92));overflow:hidden;cursor:pointer;transition:border-color .18s,box-shadow .18s,transform .12s" style-hover="border-color:rgba(45,255,138,.4);box-shadow:0 0 26px rgba(45,255,138,.12);transform:translateX(2px)">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:{{ a.statusColor }};box-shadow:0 0 12px {{ a.statusColor }};opacity:{{ a.barOpacity }}"></div>
+
+          <!-- avatar -->
+          <div style="position:relative;flex-shrink:0;width:54px;height:54px;border-radius:15px;padding:2px;background:{{ a.ring }}">
+            <div style="width:100%;height:100%;border-radius:13px;background:{{ a.grad }};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;color:#02160c;font-family:'Space Grotesk',sans-serif">{{ a.initial }}</div>
+            <div style="position:absolute;right:-3px;bottom:-3px;width:14px;height:14px;border-radius:50%;background:{{ a.statusColor }};border:2.5px solid #0a120e;box-shadow:0 0 8px {{ a.statusColor }}"></div>
+          </div>
+
+          <!-- info -->
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:15.5px;font-weight:700;color:#eafff3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.display }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+              <span style="display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:1px;color:#8fb3a3;padding:3px 9px;border:1px solid rgba(45,255,138,.18);border-radius:7px;background:rgba(45,255,138,.05)"><span style="width:5px;height:5px;border-radius:1px;background:#2dff8a"></span>{{ a.group }}</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:{{ a.statusColor }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ a.statusColor }};box-shadow:0 0 7px {{ a.statusColor }}"></span>{{ a.status }}</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#4f6f61">·&nbsp;{{ a.lastUsed }}</span>
+            </div>
+          </div>
+
+          <!-- actions -->
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <button onClick="{{ a.onLaunch }}" style="display:flex;align-items:center;gap:7px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;color:#02160c;padding:9px 16px;border:none;border-radius:10px;background:linear-gradient(180deg,#3aff96,#1ee87c);box-shadow:0 0 16px rgba(45,255,138,.35)" style-hover="box-shadow:0 0 24px rgba(45,255,138,.6)">▶ Launch</button>
+            <button onClick="{{ a.onRefresh }}" title="Refresh status" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:#9fc4b3;border:1px solid rgba(45,255,138,.2);border-radius:10px;background:rgba(45,255,138,.04)" style-hover="border-color:#2dff8a;color:#2dff8a">⟳</button>
+            <button onClick="{{ a.onDelete }}" title="Remove" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:#ff7a7a;border:1px solid rgba(255,90,90,.25);border-radius:10px;background:rgba(255,90,90,.05)" style-hover="border-color:#ff6a6a;background:rgba(255,90,90,.14)">🗑</button>
+          </div>
+        </div>
+      </sc-for>
+
+      <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:48px 20px;text-align:center;border:1px dashed rgba(45,255,138,.2);border-radius:16px;color:#5d7a6c;font-family:'JetBrains Mono',monospace;font-size:12.5px;letter-spacing:1px">NO ACCOUNTS MATCH FILTER</div>
+      </sc-if>
+    </div>
+
+    <!-- ACTIVITY LOG CONSOLE -->
+    <div style="margin-top:26px;border:1px solid rgba(45,255,138,.16);border-radius:14px;background:rgba(6,11,9,.92);overflow:hidden">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(45,255,138,.12);background:rgba(45,255,138,.03)">
+        <span style="display:flex;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:#ff5f57"></span><span style="width:9px;height:9px;border-radius:50%;background:#febc2e"></span><span style="width:9px;height:9px;border-radius:50%;background:#28c840"></span></span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:2px;color:#5d7a6c;text-transform:uppercase">activity.log</span>
+        <div style="flex:1"></div>
+        <span onClick="{{ clearLog }}" style="cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;color:#5d7a6c;text-transform:uppercase" style-hover="color:#2dff8a">clear</span>
+      </div>
+      <div style="max-height:150px;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:5px;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.5">
+        <sc-for list="{{ log }}" as="l" hint-placeholder-count="3">
+          <div style="display:flex;gap:10px"><span style="color:#3f5a4d;flex-shrink:0">{{ l.time }}</span><span style="color:{{ l.color }};flex-shrink:0">{{ l.tag }}</span><span style="color:#9fc4b3">{{ l.text }}</span></div>
+        </sc-for>
+        <div style="display:flex;gap:8px;align-items:center"><span style="color:#2dff8a">ram&nbsp;❯</span><span style="width:8px;height:14px;background:#2dff8a;animation:ramBlink 1s step-end infinite"></span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- DRAWER (account details) -->
+  <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeDrawer }}" style="position:fixed;inset:0;z-index:40;background:rgba(2,5,4,.6);backdrop-filter:blur(3px)"></div>
+  </sc-if>
+  <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;top:0;right:0;bottom:0;z-index:41;width:380px;max-width:92vw;background:linear-gradient(180deg,#0a1410,#060b09);border-left:1px solid rgba(45,255,138,.3);box-shadow:-20px 0 60px rgba(0,0,0,.6),-1px 0 30px rgba(45,255,138,.15);animation:ramDrawerIn .28s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;overflow-y:auto">
+      <div style="padding:24px;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:2.5px;color:#5d7a6c;text-transform:uppercase">Account detail</span>
+          <div style="flex:1"></div>
+          <span onClick="{{ closeDrawer }}" style="cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(45,255,138,.2);border-radius:9px;color:#9fc4b3;font-size:16px" style-hover="border-color:#2dff8a;color:#2dff8a">✕</span>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:16px">
+          <div style="position:relative;flex-shrink:0;width:72px;height:72px;border-radius:19px;padding:2px;background:{{ sel.ring }}">
+            <div style="width:100%;height:100%;border-radius:17px;background:{{ sel.grad }};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:30px;color:#02160c">{{ sel.initial }}</div>
+            <div style="position:absolute;right:-2px;bottom:-2px;width:18px;height:18px;border-radius:50%;background:{{ sel.statusColor }};border:3px solid #0a120e;box-shadow:0 0 9px {{ sel.statusColor }}"></div>
+          </div>
+          <div style="min-width:0">
+            <div style="font-size:19px;font-weight:700;color:#eafff3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sel.username }}</div>
+            <div style="display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:13px;font-weight:600;color:{{ sel.statusColor }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ sel.statusColor }};box-shadow:0 0 7px {{ sel.statusColor }}"></span>{{ sel.status }}</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <sc-for list="{{ sel.fields }}" as="f" hint-placeholder-count="6">
+            <div style="padding:12px 13px;border:1px solid rgba(45,255,138,.14);border-radius:11px;background:rgba(45,255,138,.03)">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:2px;color:#5d7a6c;text-transform:uppercase;margin-bottom:6px">{{ f.k }}</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#cdeede;word-break:break-all">{{ f.v }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:2px;color:#5d7a6c;text-transform:uppercase;margin-bottom:8px">Notes</div>
+          <div style="padding:12px 14px;border:1px solid rgba(45,255,138,.14);border-radius:11px;background:rgba(45,255,138,.03);font-size:13px;line-height:1.6;color:#9fc4b3">{{ sel.notes }}</div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <button onClick="{{ sel.onLaunch }}" style="display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;color:#02160c;padding:13px;border:none;border-radius:12px;background:linear-gradient(180deg,#3aff96,#1ee87c);box-shadow:0 0 22px rgba(45,255,138,.4)" style-hover="box-shadow:0 0 32px rgba(45,255,138,.7)">▶ Launch into game</button>
+          <div style="display:flex;gap:9px">
+            <button onClick="{{ sel.onCopy }}" style="flex:1;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;color:#cdeede;padding:11px;border:1px solid rgba(45,255,138,.22);border-radius:11px;background:rgba(45,255,138,.05)" style-hover="border-color:#2dff8a;color:#eafff3">⧉ Copy cookie</button>
+            <button onClick="{{ sel.onRefresh }}" style="flex:1;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;color:#cdeede;padding:11px;border:1px solid rgba(45,255,138,.22);border-radius:11px;background:rgba(45,255,138,.05)" style-hover="border-color:#2dff8a;color:#eafff3">⟳ Refresh</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- TOASTS -->
+  <div style="position:fixed;right:22px;bottom:22px;z-index:60;display:flex;flex-direction:column;gap:10px;pointer-events:none">
+    <sc-for list="{{ toasts }}" as="t" hint-placeholder-count="0">
+      <div style="display:flex;align-items:center;gap:11px;min-width:240px;max-width:340px;padding:13px 16px;border:1px solid rgba(45,255,138,.35);border-radius:13px;background:linear-gradient(180deg,rgba(14,26,20,.97),rgba(8,15,12,.97));box-shadow:0 10px 40px rgba(0,0,0,.5),0 0 24px rgba(45,255,138,.18);animation:ramToastIn .3s cubic-bezier(.2,.8,.2,1)">
+        <span style="font-size:16px;flex-shrink:0">{{ t.icon }}</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.4;color:#cdeede">{{ t.text }}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- BOOT / VAULT UNLOCK SCREEN -->
+  <sc-if value="{{ booting }}" hint-placeholder-val="{{ true }}">
+    <div style="position:fixed;inset:0;z-index:90;background:#04070a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;{{ bootFade }}">
+      <div style="position:relative;width:88px;height:88px;display:flex;align-items:center;justify-content:center">
+        <div style="position:absolute;inset:0;border:2px solid rgba(45,255,138,.18);border-top-color:#2dff8a;border-radius:50%;animation:ramSpin 1s linear infinite;box-shadow:0 0 30px rgba(45,255,138,.3)"></div>
+        <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="#2dff8a" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:16px;font-weight:700;letter-spacing:3px;color:#eafff3">ROBLOX ACCOUNT MANAGER</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;color:#5d7a6c;margin-top:8px">{{ bootLine }}<span style="display:inline-block;width:8px;height:13px;background:#2dff8a;margin-left:3px;vertical-align:middle;animation:ramBlink 1s step-end infinite"></span></div>
+      </div>
+      <div style="width:280px;height:5px;border-radius:999px;background:rgba(45,255,138,.12);overflow:hidden">
+        <div style="height:100%;width:{{ bootPct }};background:linear-gradient(90deg,#1ee87c,#3aff96);box-shadow:0 0 14px rgba(45,255,138,.7);transition:width .3s ease"></div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1160,&quot;height&quot;:960}}">
+class Component extends DCLogic {
+  state = {
+    query: "",
+    placeId: "",
+    multi: false,
+    activeGroup: "All",
+    booting: true,
+    bootFade: false,
+    bootLine: "initializing…",
+    bootPct: "0%",
+    selectedId: null,
+    toasts: [],
+    log: [
+      { time:"09:41:02", tag:"BOOT", color:"#2dff8a", text:"Vault decrypted via DPAPI — 6 sessions restored." },
+      { time:"09:41:02", tag:"INFO", color:"#5d7a6c", text:"WebView2 runtime detected (v124)." },
+    ],
+    accounts: [
+      { id:"1", label:"Main",    username:"xX_NeonRider_Xx", group:"Main",     status:"In game",   lastUsed:"2m ago",        userId:"1842993021", region:"EU-West",  notes:"Primary account. Premium active. Do not trade." },
+      { id:"2", label:"Builder", username:"BuildMaster_RBX", group:"Builders", status:"Online",    lastUsed:"18m ago",       userId:"7720114553", region:"US-East",  notes:"Studio / building rig. Team Create enabled." },
+      { id:"3", label:"Trade",   username:"PixelTrader_99",  group:"Trading",  status:"Offline",   lastUsed:"3h ago",        userId:"5510928374", region:"EU-West",  notes:"Limiteds holder. 2FA on. Trade window only." },
+      { id:"4", label:"PvP",     username:"ShadowByte",      group:"PvP",      status:"In Studio", lastUsed:"yesterday",     userId:"9082551200", region:"US-West",  notes:"Combat testing alt." },
+      { id:"5", label:"",        username:"GreenLeaf_777",   group:"General",  status:"Offline",   lastUsed:"never launched",userId:"3344120876", region:"—",        notes:"Fresh account, no notes yet." },
+      { id:"6", label:"Dev",     username:"VoidWalkerRBX",   group:"Dev",      status:"Online",    lastUsed:"just now",      userId:"6612889043", region:"EU-Central",notes:"API / scripting sandbox account." },
+    ],
+  };
+
+  componentDidMount() {
+    this.runBoot();
+    this.initCanvas();
+  }
+  componentWillUnmount() {
+    cancelAnimationFrame(this._raf);
+    if (this._onResize) window.removeEventListener("resize", this._onResize);
+  }
+
+  runBoot() {
+    const lines = ["initializing…", "decrypting vault (DPAPI)…", "loading 6 sessions…", "checking presence…", "ready ❯"];
+    let i = 0;
+    const step = () => {
+      if (i >= lines.length) {
+        this.setState({ bootFade: true });
+        setTimeout(() => this.setState({ booting: false }), 600);
+        return;
+      }
+      this.setState({ bootLine: lines[i], bootPct: Math.round(((i + 1) / lines.length) * 100) + "%" });
+      i++;
+      setTimeout(step, 480);
+    };
+    setTimeout(step, 350);
+  }
+
+  initCanvas() {
+    const cv = this.refs && this.refs.canvasRef;
+    if (!cv) return;
+    const ctx = cv.getContext("2d");
+    let w, h, pts;
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => {
+      w = cv.clientWidth; h = cv.clientHeight;
+      cv.width = w * DPR; cv.height = h * DPR;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      const n = Math.min(70, Math.round(w * h / 26000));
+      pts = Array.from({ length: n }, () => ({
+        x: Math.random() * w, y: Math.random() * h,
+        vx: (Math.random() - .5) * .25, vy: (Math.random() - .5) * .25,
+        r: Math.random() * 1.6 + .6,
+      }));
+    };
+    this._onResize = resize;
+    window.addEventListener("resize", resize);
+    resize();
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (const p of pts) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > w) p.vx *= -1;
+        if (p.y < 0 || p.y > h) p.vy *= -1;
+      }
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
+          const d = dx * dx + dy * dy;
+          if (d < 13000) {
+            ctx.strokeStyle = `rgba(45,255,138,${(1 - d / 13000) * 0.18})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.stroke();
+          }
+        }
+      }
+      for (const p of pts) {
+        ctx.fillStyle = "rgba(45,255,138,.6)";
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+      }
+      this._raf = requestAnimationFrame(draw);
+    };
+    draw();
+  }
+
+  statusMeta(s) {
+    switch (s) {
+      case "In game":   return { color:"#2dff8a", bar:1 };
+      case "Online":    return { color:"#5affb0", bar:1 };
+      case "In Studio": return { color:"#ffc24d", bar:1 };
+      case "Offline":   return { color:"#536b60", bar:.25 };
+      default:          return { color:"#7d99a3", bar:.4 };
+    }
+  }
+
+  grad(name) {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+    return `linear-gradient(135deg,hsl(${h} 90% 62%),hsl(${(h + 42) % 360} 95% 48%))`;
+  }
+
+  now() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+
+  set(patch) { this.setState(patch); }
+
+  pushLog(tag, text, color = "#9fc4b3") {
+    this.setState(s => ({ log: [...s.log, { time: this.now(), tag, color, text }].slice(-40) }));
+  }
+
+  toast(icon, text) {
+    const id = Math.random().toString(36).slice(2);
+    this.setState(s => ({ toasts: [...s.toasts, { id, icon, text }] }));
+    setTimeout(() => this.setState(s => ({ toasts: s.toasts.filter(t => t.id !== id) })), 3200);
+  }
+
+  notify(icon, tag, text, color) {
+    this.toast(icon, text);
+    this.pushLog(tag, text, color);
+  }
+
+  renderVals() {
+    const q = this.state.query.trim().toLowerCase();
+    const all = this.state.accounts;
+    const grp = this.state.activeGroup;
+
+    // group tabs
+    const groupNames = [...new Set(all.map(a => a.group))];
+    const tabDefs = ["All", ...groupNames];
+    const tabs = tabDefs.map(name => {
+      const active = grp === name;
+      const count = name === "All" ? all.length : all.filter(a => a.group === name).length;
+      return {
+        name, count,
+        onClick: () => this.setState({ activeGroup: name }),
+        color: active ? "#02160c" : "#9fc4b3",
+        bg: active ? "linear-gradient(180deg,#3aff96,#1ee87c)" : "rgba(45,255,138,.05)",
+        border: active ? "#2dff8a" : "rgba(45,255,138,.2)",
+        countColor: active ? "#02160c" : "#2dff8a",
+        countBg: active ? "rgba(2,22,12,.25)" : "rgba(45,255,138,.12)",
+      };
+    });
+
+    const filtered = all.filter(a => {
+      if (grp !== "All" && a.group !== grp) return false;
+      if (!q) return true;
+      return (a.label + " " + a.username + " " + a.group + " " + a.status).toLowerCase().includes(q);
+    });
+
+    const decorate = (a) => {
+      const m = this.statusMeta(a.status);
+      return {
+        ...a,
+        display: a.label ? `${a.label}  (${a.username})` : a.username,
+        initial: (a.label || a.username).charAt(0).toUpperCase(),
+        grad: this.grad(a.username),
+        ring: `linear-gradient(135deg,${m.color},rgba(45,255,138,.15))`,
+        statusColor: m.color,
+        barOpacity: m.bar,
+      };
+    };
+
+    const accounts = filtered.map(a => {
+      const d = decorate(a);
+      return {
+        ...d,
+        onOpen:    () => this.setState({ selectedId: a.id }),
+        onLaunch:  (e) => { e.stopPropagation(); this.notify("▶", "LAUNCH", `Launching ${a.username} — auth ticket requested.`, "#2dff8a"); },
+        onRefresh: (e) => { e.stopPropagation(); this.notify("⟳", "INFO", `Refreshed presence for ${a.username}.`, "#5d7a6c"); },
+        onDelete:  (e) => { e.stopPropagation(); this.notify("🗑", "WARN", `Removed ${a.username} from vault.`, "#ffc24d"); this.setState({ accounts: all.filter(x => x.id !== a.id), selectedId: this.state.selectedId === a.id ? null : this.state.selectedId }); },
+      };
+    });
+
+    // drawer selection
+    const selRaw = all.find(a => a.id === this.state.selectedId);
+    let sel = {};
+    if (selRaw) {
+      const d = decorate(selRaw);
+      sel = {
+        ...d,
+        fields: [
+          { k:"User ID",   v:selRaw.userId },
+          { k:"Group",     v:selRaw.group },
+          { k:"Region",    v:selRaw.region },
+          { k:"Last used", v:selRaw.lastUsed },
+          { k:"Label",     v:selRaw.label || "—" },
+          { k:"2FA",       v:"Enabled" },
+        ],
+        onLaunch:  () => this.notify("▶", "LAUNCH", `Launching ${selRaw.username} — auth ticket requested.`, "#2dff8a"),
+        onCopy:    () => this.notify("⧉", "INFO", `.ROBLOSECURITY for ${selRaw.username} copied to clipboard.`, "#5d7a6c"),
+        onRefresh: () => this.notify("⟳", "INFO", `Refreshed presence for ${selRaw.username}.`, "#5d7a6c"),
+      };
+    }
+
+    const online = all.filter(a => a.status === "Online" || a.status === "In game").length;
+    const ingame = all.filter(a => a.status === "In game").length;
+    const stats = [
+      { label:"Accounts", value:String(all.length),       unit:"saved",  color:"#eafff3", glow:"none",                         bar:"#2dff8a" },
+      { label:"Online",   value:String(online),           unit:"now",    color:"#2dff8a", glow:"0 0 16px rgba(45,255,138,.7)", bar:"#2dff8a" },
+      { label:"In game",  value:String(ingame),           unit:"playing",color:"#5affb0", glow:"0 0 14px rgba(90,255,176,.6)", bar:"#5affb0" },
+      { label:"Groups",   value:String(groupNames.length),unit:"tags",   color:"#eafff3", glow:"none",                         bar:"rgba(45,255,138,.4)" },
+    ];
+
+    const multi = this.state.multi;
+    return {
+      query: this.state.query,
+      placeId: this.state.placeId,
+      accounts, stats, tabs, sel,
+      log: this.state.log,
+      toasts: this.state.toasts,
+      visibleCount: accounts.length,
+      isEmpty: accounts.length === 0,
+      booting: this.state.booting,
+      bootLine: this.state.bootLine,
+      bootPct: this.state.bootPct,
+      bootFade: this.state.bootFade ? "animation:ramFadeOut .6s ease forwards" : "",
+      drawerOpen: !!selRaw,
+      closeDrawer: () => this.setState({ selectedId: null }),
+      onSearch: (e) => this.set({ query: e.target.value }),
+      onPlace:  (e) => this.set({ placeId: e.target.value }),
+      lockVault:  () => { this.setState({ bootFade:false, booting:true, selectedId:null }); this.runBoot(); },
+      addLogin:   () => this.notify("＋", "INFO", "Opening Roblox login (WebView2)…", "#5d7a6c"),
+      addCookie:  () => this.notify("＋", "INFO", "Paste .ROBLOSECURITY to import an account.", "#5d7a6c"),
+      refreshAll: () => this.notify("⟳", "INFO", "Refreshing all account statuses…", "#5d7a6c"),
+      openClient: () => this.notify("🚀", "INFO", "Opening a clean Roblox client.", "#5d7a6c"),
+      clearLog:   () => this.setState({ log: [] }),
+      toggleMulti: () => { const v = !multi; this.setState({ multi: v }); this.notify(v ? "⛓" : "⛓", v ? "WARN" : "INFO", v ? "Multi-instance ON — holding ROBLOX_singletonEvent." : "Multi-instance OFF.", v ? "#ffc24d" : "#5d7a6c"); },
+      multiTrack: multi ? "linear-gradient(90deg,#1ee87c,#3aff96)" : "#16241d",
+      multiKnobX: multi ? "20px" : "2px",
+      multiKnob:  multi ? "#02160c" : "#5d7a6c",
+      multiKnobShadow: multi ? "0 0 10px rgba(45,255,138,.7)" : "none",
+      multiBorder: multi ? "#2dff8a" : "rgba(45,255,138,.2)",
+      multiBg:    multi ? "rgba(45,255,138,.08)" : "rgba(45,255,138,.04)",
+      multiText:  multi ? "#eafff3" : "#9fc4b3",
+    };
+  }
+}
+</script>
+</body>
+</html>
