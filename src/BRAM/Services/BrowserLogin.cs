@@ -67,8 +67,46 @@ public static class BrowserLogin
         finally
         {
             try { if (browser != null) await browser.CloseAsync(); } catch { }
-            try { Directory.Delete(profile, recursive: true); } catch { }
+            await SafeDeleteDirAsync(profile);
         }
+    }
+
+    /// <summary>
+    /// Deletes a Chromium profile dir, retrying because Chrome's child processes
+    /// often still hold handles for a moment after CloseAsync returns on Windows.
+    /// </summary>
+    private static async Task SafeDeleteDirAsync(string dir)
+    {
+        for (int attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                if (!Directory.Exists(dir)) return;
+                Directory.Delete(dir, recursive: true);
+                return;
+            }
+            catch when (attempt < 5)
+            {
+                await Task.Delay(300);
+            }
+            catch
+            {
+                return; // give up quietly; PruneStaleProfiles() will collect it later
+            }
+        }
+    }
+
+    /// <summary>Best-effort cleanup of profiles leaked by earlier sessions.</summary>
+    public static void PruneStaleProfiles()
+    {
+        try
+        {
+            foreach (string dir in Directory.EnumerateDirectories(Path.GetTempPath(), "RAM-login-*"))
+            {
+                try { Directory.Delete(dir, recursive: true); } catch { }
+            }
+        }
+        catch { }
     }
 
     private static string? FindBrowser()

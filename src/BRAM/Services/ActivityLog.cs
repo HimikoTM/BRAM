@@ -50,7 +50,9 @@ public sealed class ActivityLog
 
     private void Save()
     {
-        try { Storage.WriteAllText(Storage.ActivityLogPath, JsonSerializer.Serialize(_entries, JsonOpts)); }
+        // Atomic write (temp + replace): a crash mid-write can't truncate the
+        // previous good log and wipe the whole history on next load.
+        try { Storage.WriteAllTextAtomic(Storage.ActivityLogPath, JsonSerializer.Serialize(_entries, JsonOpts)); }
         catch { }
     }
 }

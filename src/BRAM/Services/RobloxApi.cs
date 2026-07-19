@@ -67,11 +67,22 @@ public sealed class RobloxApi : IDisposable
         using var res = await _http.SendAsync(req);
         if (!res.IsSuccessStatusCode) return null;
 
-        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
-        var root = doc.RootElement;
-        return (root.GetProperty("id").GetInt64(),
-                root.GetProperty("name").GetString() ?? "",
-                root.GetProperty("displayName").GetString() ?? "");
+        try
+        {
+            using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("id", out var idEl))
+                return null;
+            long id = idEl.GetInt64();
+            string name = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+            string display = root.TryGetProperty("displayName", out var d) ? d.GetString() ?? "" : "";
+            return (id, name, display);
+        }
+        catch
+        {
+            // 200 with a maintenance/interstitial body that isn't the expected JSON.
+            return null;
+        }
     }
 
     public async Task<int> GetPresenceAsync(long userId, string cookie)
@@ -81,10 +92,19 @@ public sealed class RobloxApi : IDisposable
         using var res = await _http.SendAsync(req);
         if (!res.IsSuccessStatusCode) return -1;
 
-        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
-        foreach (var p in doc.RootElement.GetProperty("userPresences").EnumerateArray())
-            return p.GetProperty("userPresenceType").GetInt32();
-        return -1;
+        try
+        {
+            using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+            if (doc.RootElement.TryGetProperty("userPresences", out var arr) && arr.ValueKind == JsonValueKind.Array)
+                foreach (var p in arr.EnumerateArray())
+                    if (p.TryGetProperty("userPresenceType", out var t) && t.TryGetInt32(out int v))
+                        return v;
+            return -1;
+        }
+        catch
+        {
+            return -1;
+        }
     }
 
     public async Task<string?> GetAvatarHeadshotAsync(long userId)
@@ -94,10 +114,19 @@ public sealed class RobloxApi : IDisposable
         using var res = await _http.GetAsync(url);
         if (!res.IsSuccessStatusCode) return null;
 
-        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
-        foreach (var d in doc.RootElement.GetProperty("data").EnumerateArray())
-            return d.GetProperty("imageUrl").GetString();
-        return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+            if (doc.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
+                foreach (var d in data.EnumerateArray())
+                    if (d.TryGetProperty("imageUrl", out var u))
+                        return u.GetString();
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public void Dispose() => _http.Dispose();

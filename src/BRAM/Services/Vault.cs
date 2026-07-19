@@ -41,7 +41,19 @@ public sealed class Vault
 
         byte[]? primary = Storage.ReadAllBytesOrNull(Storage.AccountsPath);
         byte[]? backup = Storage.ReadAllBytesOrNull(Storage.BackupPath);
-        if (primary == null && backup == null) { Mode = "none"; return VaultState.NoFile; }
+        if (primary == null && backup == null)
+        {
+            // A present-but-unreadable file must NOT be reported as "fresh" — that
+            // would let a transient lock lead to overwriting intact data. Treat it
+            // as Corrupt (recovery screen), which never auto-overwrites.
+            if (Storage.Exists(Storage.AccountsPath) || Storage.Exists(Storage.BackupPath))
+            {
+                Mode = "none";
+                return VaultState.Corrupt;
+            }
+            Mode = "none";
+            return VaultState.NoFile;
+        }
 
         byte[]? plain = (primary != null ? TryDpapiUnprotect(primary) : null)
                      ?? (backup != null ? TryDpapiUnprotect(backup) : null);
@@ -91,21 +103,25 @@ public sealed class Vault
             return false;
 
         VaultFile vf = _pending;
-        byte[] salt = Convert.FromBase64String(vf.Kdf!.Salt);
-        byte[] pwBytes = Encoding.UTF8.GetBytes(password);
-        byte[] key = Rfc2898DeriveBytes.Pbkdf2(pwBytes, salt, vf.Kdf.Iterations, HashAlgorithmName.SHA256, KeyLen);
-        CryptographicOperations.ZeroMemory(pwBytes);
-
-        byte[] expected = Convert.FromBase64String(vf.Verifier!);
-        byte[] actual = DeriveVerifier(key);
-        if (!CryptographicOperations.FixedTimeEquals(expected, actual))
-        {
-            CryptographicOperations.ZeroMemory(key);
+        if (vf.Kdf!.Iterations <= 0 || string.IsNullOrEmpty(vf.Kdf.Salt))
             return false;
-        }
 
+        byte[]? key = null;
         try
         {
+            byte[] salt = Convert.FromBase64String(vf.Kdf.Salt);
+            byte[] pwBytes = Encoding.UTF8.GetBytes(password);
+            key = Rfc2898DeriveBytes.Pbkdf2(pwBytes, salt, vf.Kdf.Iterations, HashAlgorithmName.SHA256, KeyLen);
+            CryptographicOperations.ZeroMemory(pwBytes);
+
+            byte[] expected = Convert.FromBase64String(vf.Verifier!);
+            byte[] actual = DeriveVerifier(key);
+            if (!CryptographicOperations.FixedTimeEquals(expected, actual))
+            {
+                CryptographicOperations.ZeroMemory(key);
+                return false;
+            }
+
             byte[] nonce = Convert.FromBase64String(vf.Nonce!);
             byte[] tag = Convert.FromBase64String(vf.Tag!);
             byte[] cipher = Convert.FromBase64String(vf.Cipher);
@@ -124,7 +140,7 @@ public sealed class Vault
         }
         catch
         {
-            CryptographicOperations.ZeroMemory(key);
+            if (key != null) CryptographicOperations.ZeroMemory(key);
             return false;
         }
       }

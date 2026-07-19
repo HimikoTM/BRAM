@@ -17,13 +17,11 @@ public static class Launcher
         if (_singleton != null) return true;
         try
         {
-            _singleton = new Mutex(true, "ROBLOX_singletonEvent", out bool createdNew);
-            if (!createdNew)
-            {
-                _singleton.Dispose();
-                _singleton = null;
-                return false;
-            }
+            // Holding ANY open handle to the named mutex keeps the kernel object
+            // alive — we do not need to be its creator, and it works whether or
+            // not Roblox is already running. initiallyOwned:false means we never
+            // own it, so there is no thread-affine ReleaseMutex to get wrong.
+            _singleton = new Mutex(false, "ROBLOX_singletonEvent");
             return true;
         }
         catch
@@ -35,8 +33,7 @@ public static class Launcher
 
     public static void DisableMultiInstance()
     {
-        try { _singleton?.ReleaseMutex(); } catch { }
-        _singleton?.Dispose();
+        try { _singleton?.Dispose(); } catch { }
         _singleton = null;
     }
 
